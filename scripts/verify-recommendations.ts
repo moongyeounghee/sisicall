@@ -52,8 +52,15 @@ for (const mode of modes) {
   if (mode === 'home' && eligible.some((call) => call.homeDirectionSimilarity < 70 || call.homeDistanceChangeKm >= 0 || call.pickupDistanceKm > 7)) {
     throw new Error('귀가 모드의 필수 방향·거리 기준을 통과하지 못한 콜이 추천되었습니다.');
   }
-  if (mode === 'long' && eligible.some((call) => call.distanceKm < 20 || call.pickupDistanceKm > 8 || call.returnBurdenScore < 25)) {
-    throw new Error('장거리 모드의 필수 거리·복귀 기준을 통과하지 못한 콜이 추천되었습니다.');
+  // 복귀 부담은 점수와 경고로만 반영한다. 탈락 조건으로 쓰면 더 길고 요금이 높은 콜부터 사라진다.
+  if (mode === 'long' && eligible.some((call) => call.distanceKm < 20 || call.pickupDistanceKm > 8)) {
+    throw new Error('장거리 모드의 필수 거리 기준을 통과하지 못한 콜이 추천되었습니다.');
+  }
+  if (mode === 'long' && !eligible.some((call) => call.returnBurdenScore < 25)) {
+    throw new Error('복귀 부담이 큰 장거리 콜이 여전히 전부 걸러지고 있습니다.');
+  }
+  if (mode === 'long' && !eligible.every((call) => call.returnBurdenScore >= 25 || call.warnings.length > 0)) {
+    throw new Error('복귀 부담이 큰 콜에 경고가 표시되지 않았습니다.');
   }
   if (mode === 'short' && eligible.some((call) => call.distanceKm > preferences.maxShortTripKm || call.pickupDistanceKm > 5 || call.durationMin > 25)) {
     throw new Error('단거리 모드의 필수 거리·시간 기준을 통과하지 못한 콜이 추천되었습니다.');

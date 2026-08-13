@@ -55,6 +55,11 @@ function learningAdjustment(call: RawCall, mode: OperationMode, feedback: Feedba
   return clamp((acceptedSimilarity - rejectedSimilarity) * 12, -8, 8);
 }
 
+/** 기준과의 차이를 사람이 읽기 좋게 옮긴다. 반올림해서 0이 되는 값은 "살짝"으로 말한다. */
+function gapText(difference: number, unit: string) {
+  return difference < 0.1 ? '살짝' : `${round(difference)}${unit}`;
+}
+
 function breakdownItem(key: string, label: string, score: number, weight: number): ScoreBreakdown {
   return { key, label, score: round(clamp(score)), weight, weightedScore: round(clamp(score) * weight) };
 }
@@ -89,10 +94,18 @@ function scoreMode(call: RawCall, mode: OperationMode, preferences: DriverPrefer
       breakdownItem('finishTime', '퇴근 시간 적합', finishFit, 0.25),
       breakdownItem('pickup', '픽업 편의', pickupConvenience, 0.10),
     ];
-    if (call.homeDirectionSimilarity < 70) warnings.push('자택 방향 일치도가 70%보다 낮아요.');
-    if (call.homeDistanceChangeKm >= 0) warnings.push(`운행 후 자택까지 거리가 ${round(call.homeDistanceChangeKm)}km 늘어나요.`);
-    if (finishDelayMinutes > 0) warnings.push(`희망 종료 시각보다 약 ${finishDelayMinutes}분 늦어질 수 있어요.`);
-    if (call.pickupDistanceKm > 7) warnings.push('픽업 위치가 현재 위치에서 너무 멀어요.');
+    if (call.homeDirectionSimilarity < 70) {
+      warnings.push(`자택 방향 일치도 ${Math.round(call.homeDirectionSimilarity)}% — 기준 70%에 ${gapText(70 - call.homeDirectionSimilarity, '%p')} 모자라요.`);
+    }
+    if (call.homeDistanceChangeKm >= 0) {
+      warnings.push(`운행 후 자택까지 ${round(call.homeDistanceChangeKm)}km 멀어져요. 귀가 모드는 가까워지는 콜만 골라요.`);
+    }
+    if (finishDelayMinutes > 0) {
+      warnings.push(`희망 종료 ${preferences.desiredEndTime}보다 약 ${finishDelayMinutes}분 늦어져요.`);
+    }
+    if (call.pickupDistanceKm > 7) {
+      warnings.push(`픽업 ${round(call.pickupDistanceKm)}km — 귀가 모드 기준 7km를 ${gapText(call.pickupDistanceKm - 7, 'km')} 넘어요.`);
+    }
     eligible = call.homeDirectionSimilarity >= 70
       && call.homeDistanceChangeKm < 0
       && finishDelayMinutes === 0
@@ -107,14 +120,24 @@ function scoreMode(call: RawCall, mode: OperationMode, preferences: DriverPrefer
       breakdownItem('return', '복귀 부담', call.returnBurdenScore, 0.10),
       breakdownItem('pickup', '픽업 편의', pickupConvenience, 0.10),
     ];
-    if (call.distanceKm < 20) warnings.push('운행 거리가 20km보다 짧아 장거리 기준에 맞지 않아요.');
-    if (totalMinutes > preferences.maxDrivingMinutes) warnings.push('설정한 최대 운행 시간을 초과할 가능성이 있어요.');
-    if (call.pickupDistanceKm > 8) warnings.push('픽업 위치가 현재 위치에서 너무 멀어요.');
-    if (call.returnBurdenScore < 25) warnings.push('목적지 도착 후 복귀 부담이 큰 지역이에요.');
+    if (call.distanceKm < 20) {
+      warnings.push(`운행 ${round(call.distanceKm)}km — 장거리 기준 20km에 ${gapText(20 - call.distanceKm, 'km')} 모자라요.`);
+    }
+    if (totalMinutes > preferences.maxDrivingMinutes) {
+      warnings.push(`픽업 포함 ${totalMinutes}분 — 설정한 최대 ${preferences.maxDrivingMinutes}분을 ${totalMinutes - preferences.maxDrivingMinutes}분 넘겨요.`);
+    }
+    if (call.pickupDistanceKm > 8) {
+      warnings.push(`픽업 ${round(call.pickupDistanceKm)}km — 장거리 모드 기준 8km를 ${gapText(call.pickupDistanceKm - 8, 'km')} 넘어요.`);
+    }
+    if (call.returnBurdenScore < 25) {
+      warnings.push(`복귀 부담 ${Math.round(call.returnBurdenScore)}점 — ${call.destDistrict}은 빈차로 돌아올 가능성이 커요. 요금은 높지만 다음 콜까지 시간이 걸려요.`);
+    }
+    // 복귀 부담은 적합 여부를 가르지 않는다. 멀리 갈수록 복귀가 부담스러운 것은 당연한데
+    // 이를 탈락 조건으로 쓰면 20km 이상 콜의 절반이 잘려나가고, 그중 더 길고 요금이 높은
+    // 콜부터 사라진다. 장거리 선호 기사가 감수하는 부분이므로 점수와 경고로만 알린다.
     eligible = call.distanceKm >= 20
       && totalMinutes <= preferences.maxDrivingMinutes
-      && call.pickupDistanceKm <= 8
-      && call.returnBurdenScore >= 25;
+      && call.pickupDistanceKm <= 8;
   } else if (mode === 'short') {
     const shortTrip = clamp(100 - Math.max(0, call.distanceKm - 1) * (100 / Math.max(1, preferences.maxShortTripKm)));
     breakdown = [
@@ -123,9 +146,15 @@ function scoreMode(call: RawCall, mode: OperationMode, preferences: DriverPrefer
       breakdownItem('turnover', '회전 가능성', call.turnoverPotentialScore, 0.25),
       breakdownItem('demand', '하차지 수요', call.destinationDemandScore, 0.15),
     ];
-    if (call.distanceKm > preferences.maxShortTripKm) warnings.push(`선호 거리 ${preferences.maxShortTripKm}km를 초과해요.`);
-    if (call.pickupDistanceKm > 5) warnings.push('픽업 거리가 5km보다 멀어요.');
-    if (call.durationMin > 25) warnings.push('예상 운행 시간이 25분보다 길어요.');
+    if (call.distanceKm > preferences.maxShortTripKm) {
+      warnings.push(`운행 ${round(call.distanceKm)}km — 선호 ${preferences.maxShortTripKm}km를 ${gapText(call.distanceKm - preferences.maxShortTripKm, 'km')} 넘어요.`);
+    }
+    if (call.pickupDistanceKm > 5) {
+      warnings.push(`픽업 ${round(call.pickupDistanceKm)}km — 단거리 모드 기준 5km를 ${gapText(call.pickupDistanceKm - 5, 'km')} 넘어요.`);
+    }
+    if (call.durationMin > 25) {
+      warnings.push(`예상 운행 ${call.durationMin}분 — 기준 25분을 ${call.durationMin - 25}분 넘어요. 회전율이 떨어져요.`);
+    }
     eligible = call.distanceKm <= preferences.maxShortTripKm
       && call.pickupDistanceKm <= 5
       && call.durationMin <= 25;
@@ -145,14 +174,17 @@ function scoreMode(call: RawCall, mode: OperationMode, preferences: DriverPrefer
     ];
     if (batteryAfterRide < preferences.safetyReserve) {
       eligible = false;
-      warnings.push(`운행 후 ${round(batteryAfterRide)}%로 안전 잔량 ${preferences.safetyReserve}%를 밑돌아요.`);
+      warnings.push(`배터리 ${preferences.batteryLevel}% → 운행 후 ${round(batteryAfterRide)}% — 안전 잔량 ${preferences.safetyReserve}%에 ${gapText(preferences.safetyReserve - batteryAfterRide, '%p')} 모자라요.`);
     }
     const hasReachableCharger = call.nearbyChargers > 0
       && call.nearestChargerDistanceKm !== null
       && call.nearestChargerDistanceKm <= 2;
     if (!hasReachableCharger) {
       eligible = false;
-      warnings.push('목적지 2km 이내 이용 가능한 충전소가 확인되지 않아요.');
+      const nearest = call.nearestChargerDistanceKm === null
+        ? '주변 충전소 정보가 없어요'
+        : `가장 가까운 충전소가 ${round(call.nearestChargerDistanceKm)}km 떨어져 있어요`;
+      warnings.push(`목적지 2km 이내에 쓸 수 있는 충전소가 없어요. ${nearest}.`);
     }
   }
 
@@ -181,7 +213,15 @@ function reasonFor(item: ScoreBreakdown, call: RawCall, mode: OperationMode, pre
   }
   if (item.key === 'efficiency') return `예상 배터리 소모는 ${round(call.batteryUsePct)}%예요.`;
   if (item.key === 'return') return `복귀 부담 점수는 ${Math.round(call.returnBurdenScore)}점이에요.`;
-  return `${MODE_META[mode].shortLabel} 모드에 적합한 조건이에요.`;
+  if (item.key === 'timeFit') {
+    const totalMinutes = call.pickupDurationMin + call.durationMin;
+    return totalMinutes <= preferences.maxDrivingMinutes
+      ? `픽업 포함 약 ${totalMinutes}분으로 최대 운행 시간 안에 들어와요.`
+      : `픽업 포함 약 ${totalMinutes}분으로 설정한 ${preferences.maxDrivingMinutes}분을 넘겨요.`;
+  }
+  if (item.key === 'congestion') return `충전소 혼잡도 점수는 ${Math.round(call.chargerCongestionScore)}점이에요.`;
+  // 부적합한 콜에도 붙는 문장이므로 적합하다고 단정하지 않는다
+  return `${MODE_META[mode].shortLabel} 모드 기준으로 평가한 항목이에요.`;
 }
 
 export function recommendCalls(
@@ -197,7 +237,9 @@ export function recommendCalls(
     const scoreThreshold = mode === 'normal' ? 0 : mode === 'ev' ? 50 : 55;
     const eligible = result.eligible && baseScore >= scoreThreshold;
     const warnings = [...result.warnings];
-    if (result.eligible && !eligible) warnings.push(`모드 적합 점수가 기준 ${scoreThreshold}점보다 낮아요.`);
+    if (result.eligible && !eligible) {
+      warnings.push(`모드 적합 점수 ${round(baseScore)}점 — 기준 ${scoreThreshold}점에 ${gapText(scoreThreshold - baseScore, '점')} 모자라요.`);
+    }
     const recommendationScore = clamp(baseScore + learned);
     const topItems = [...result.breakdown].sort((a, b) => b.weightedScore - a.weightedScore).slice(0, 2);
     const reasons = topItems.map((item) => reasonFor(item, call, mode, preferences));
