@@ -92,9 +92,23 @@ function seededRandom(seed: number) {
 }
 
 /** 가까운 콜일수록 자주 잡히도록 가중치를 준다 */
-const CANDIDATE_RADIUS = 240;
+const CANDIDATE_RADIUS = 380;
 /** 한 승차 지점이 목록을 독점하지 않도록 제한한다 */
-const MAX_PER_ORIGIN = 4;
+const MAX_PER_ORIGIN = 5;
+/** 한 번에 콜이 떠 있는 승차 지점 수 */
+const ACTIVE_ORIGINS = 24;
+
+/**
+ * 지점별로 지금 잡을 수 있는 콜이 없을 확률.
+ * 가까운 지점일수록 주변 기사들이 몰려 먼저 배차되므로 더 자주 비어 있다.
+ * 이게 없으면 기사에게 가장 가까운 지점이 늘 1순위가 되어 같은 화면만 반복된다.
+ */
+function originTakenChance(pickupDistanceKm: number) {
+  if (pickupDistanceKm < 1.5) return 0.58;
+  if (pickupDistanceKm < 3) return 0.45;
+  if (pickupDistanceKm < 5) return 0.3;
+  return 0.12;
+}
 
 export function buildSimulationCallPool(
   calls: RawCall[],
@@ -129,23 +143,39 @@ export function buildSimulationCallPool(
   // 실제 배차처럼, 권역 안의 콜 중 일부만 그때그때 떠 있게 만든다.
   // 가까울수록 뽑힐 확률이 높지만 매번 같은 조합이 나오지는 않는다.
   const random = seededRandom(seed);
-  const ranked = nearby
-    .slice(0, CANDIDATE_RADIUS)
-    .map((call) => {
-      const weight = 1 / Math.pow(1 + call.pickupDistanceKm, 1.5);
-      return { call, key: Math.pow(random(), 1 / weight) };
-    })
-    .sort((a, b) => b.key - a.key);
 
-  // 같은 승차 지점만 잔뜩 뽑히면 추천이 늘 똑같아지므로 지점별 상한을 둔다
-  const perOrigin = new Map<string, number>();
+  // 콜을 하나씩 고르면 콜이 많은 지점이 늘 끼어들어 1순위가 고정된다.
+  // 그래서 "지금 콜이 떠 있는 지점"을 먼저 정하고, 그 지점들에서만 콜을 가져온다.
+  // 가까운 지점일수록 자주 선택되지만, 다른 기사가 먼저 잡아가 비는 경우도 생긴다.
+  const byOrigin = new Map<string, typeof nearby>();
+  for (const call of nearby.slice(0, CANDIDATE_RADIUS)) {
+    const list = byOrigin.get(call.originTitle);
+    if (list) list.push(call);
+    else byOrigin.set(call.originTitle, [call]);
+  }
+
+  const groups = [...byOrigin.values()]
+    .filter((group) => random() > originTakenChance(group[0].pickupDistanceKm));
+
+  const activeOrigins = (groups.length ? groups : [...byOrigin.values()])
+    .map((group) => {
+      const weight = 1 / Math.pow(1 + group[0].pickupDistanceKm, 0.9);
+      return { group, key: Math.pow(random(), 1 / weight) };
+    })
+    .sort((a, b) => b.key - a.key)
+    .slice(0, ACTIVE_ORIGINS);
+
   const picked: typeof nearby = [];
-  for (const { call } of ranked) {
+  for (const { group } of activeOrigins) {
+    const shuffled = group
+      .map((call) => ({ call, key: random() }))
+      .sort((a, b) => a.key - b.key)
+      .slice(0, MAX_PER_ORIGIN);
+    for (const { call } of shuffled) {
+      if (picked.length >= limit) break;
+      picked.push(call);
+    }
     if (picked.length >= limit) break;
-    const used = perOrigin.get(call.originTitle) ?? 0;
-    if (used >= MAX_PER_ORIGIN) continue;
-    perOrigin.set(call.originTitle, used + 1);
-    picked.push(call);
   }
 
   return picked.sort((a, b) => a.pickupDistanceKm - b.pickupDistanceKm);
