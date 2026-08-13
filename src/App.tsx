@@ -79,12 +79,12 @@ export default function App() {
   const [preferences, setPreferences] = useState<DriverPreferences>(() => readStored('sisicall-preferences', DEFAULT_PREFERENCES));
   const [feedback, setFeedback] = useState<FeedbackEvent[]>(() => readStored('sisicall-feedback', []));
   const [simulation, setSimulation] = useState<SimulationState>(
-    () => readStored('sisicall-simulation', randomStartSimulation(RAW_CALLS)),
+    () => readStored('sisicall-simulation-v2', randomStartSimulation(RAW_CALLS)),
   );
   const [stats, setStats] = useState<DriverStats>(() => normalizeDriverStats(readStored('sisicall-stats', DEFAULT_STATS)));
   const [statsDate, setStatsDate] = useState<string>(() => readStored(
     'sisicall-stats-date',
-    readStored<SimulationState>('sisicall-simulation', DEFAULT_SIMULATION).currentTime.slice(0, 10),
+    readStored<SimulationState>('sisicall-simulation-v2', DEFAULT_SIMULATION).currentTime.slice(0, 10),
   ));
   const [driverState, setDriverState] = useState<DriverState>('waiting');
   const [boosterTarget, setBoosterTarget] = useState<string | null>(null);
@@ -116,6 +116,16 @@ export default function App() {
   // 콜은 실제 배차처럼 계속 들고 난다. 시드가 바뀌면 떠 있는 콜 목록이 새로 구성된다.
   const [poolSeed, setPoolSeed] = useState(() => Date.now() >>> 0);
   const refreshCallPool = useCallback(() => setPoolSeed(Date.now() >>> 0), []);
+
+  // 한자리에 서 있으면 가장 가까운 승차 지점이 계속 1순위가 된다.
+  // 다른 지역으로 옮겨 새로운 콜 상황을 보게 한다. 가상 시각은 그대로 둔다.
+  const relocateDriver = useCallback(() => {
+    setSimulation((previous) => ({
+      ...randomStartSimulation(RAW_CALLS),
+      currentTime: previous.currentTime,
+    }));
+    setPoolSeed(Date.now() >>> 0);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -155,7 +165,7 @@ export default function App() {
     localStorage.setItem('sisicall-feedback', JSON.stringify(feedback.slice(-60)));
     localStorage.setItem('sisicall-stats', JSON.stringify(stats));
     localStorage.setItem('sisicall-stats-date', JSON.stringify(statsDate));
-    localStorage.setItem('sisicall-simulation', JSON.stringify(simulation));
+    localStorage.setItem('sisicall-simulation-v2', JSON.stringify(simulation));
     localStorage.setItem('sisicall-unavailable-calls', JSON.stringify(unavailableCallIds.slice(-300)));
   }, [activeMode, preferences, feedback, stats, statsDate, simulation, unavailableCallIds]);
 
@@ -303,6 +313,7 @@ export default function App() {
       <PwaDemoHeader
         simulation={simulation}
         onSimulationTimeChange={handleSimulationTimeChange}
+        onRelocate={relocateDriver}
         isDriving={driverState === 'driving'}
       />
 

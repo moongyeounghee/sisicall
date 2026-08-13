@@ -4,12 +4,14 @@ import { SimulationState } from '../services/simulationEngine';
 interface Props {
   simulation: SimulationState;
   onSimulationTimeChange: (value: string) => void;
+  onRelocate: () => void;
   isDriving: boolean;
 }
 
 export const PwaDemoHeader: React.FC<Props> = ({
   simulation,
   onSimulationTimeChange,
+  onRelocate,
   isDriving,
 }) => {
   const timeInputRef = useRef<HTMLInputElement>(null);
@@ -31,7 +33,16 @@ export const PwaDemoHeader: React.FC<Props> = ({
           <span className="material-symbols-outlined text-2xl text-[#ffd700]">schedule</span>
           <div>
             <p className="text-sm font-extrabold text-[#ffe88b]">시뮬레이션 가상 시각</p>
-            <p className="max-w-[230px] truncate text-xs text-[#d0c6ab]">현재 위치 · {simulation.locationName}</p>
+            <button
+              type="button"
+              onClick={onRelocate}
+              disabled={isDriving}
+              title="다른 지역으로 이동해 새로운 콜 상황 보기"
+              className="flex max-w-[230px] items-center gap-1 text-xs text-[#d0c6ab] transition-colors hover:text-[#ffd700] disabled:opacity-50"
+            >
+              <span className="truncate">현재 위치 · {simulation.locationName}</span>
+              <span className="material-symbols-outlined text-[15px]">sync_alt</span>
+            </button>
           </div>
         </div>
         <input
