@@ -23,6 +23,7 @@ interface Props {
   boosterTarget: string | null;
   onOpenCallList: () => void;
   onOpenDemandMap: () => void;
+  onRefreshCalls: () => void;
 }
 
 export const MainCallWaitingScreen: React.FC<Props> = ({
@@ -44,6 +45,7 @@ export const MainCallWaitingScreen: React.FC<Props> = ({
   boosterTarget,
   onOpenCallList,
   onOpenDemandMap,
+  onRefreshCalls,
 }) => {
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -107,9 +109,20 @@ export const MainCallWaitingScreen: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="grid h-10 shrink-0 grid-cols-2 divide-x divide-[#3b3934] rounded-lg border border-[#353534] bg-[#1d1c1c]">
+      <div className="grid h-10 shrink-0 grid-cols-[1fr_1fr_auto] divide-x divide-[#3b3934] rounded-lg border border-[#353534] bg-[#1d1c1c]">
         <StatCard label="주변 콜" value={`${analyzedCount}건`} />
         <StatCard label={activeMode === 'normal' ? '노출 콜' : '모드 적합'} value={`${eligibleCount}건`} accent="text-[#ffd700]" />
+        <button
+          type="button"
+          onClick={() => {
+            sounds.playClick();
+            onRefreshCalls();
+          }}
+          aria-label="주변 콜 새로 불러오기"
+          className="flex w-11 items-center justify-center text-[#d0c6ab] transition-colors hover:text-[#ffd700] active:scale-95"
+        >
+          <span className="material-symbols-outlined text-[20px]">refresh</span>
+        </button>
       </div>
 
       {driverState === 'waiting' && topRecommendation && (

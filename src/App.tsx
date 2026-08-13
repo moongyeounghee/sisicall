@@ -16,6 +16,7 @@ import {
   DEFAULT_SIMULATION,
   estimatedRoadDistanceKm,
   HOME_COORDINATES,
+  randomStartSimulation,
   SimulationState,
 } from './services/simulationEngine';
 import {
@@ -41,6 +42,8 @@ import { NoticeModal } from './components/NoticeModal';
 import { MenuDrawer } from './components/MenuDrawer';
 
 const RAW_CALLS = calls3000 as RawCall[];
+/** 떠 있는 콜 목록을 새로 구성하는 주기 */
+const CALL_POOL_REFRESH_MS = 15000;
 
 const DEFAULT_PREFERENCES: DriverPreferences = {
   currentLocationName: '연세대학교 신촌캠퍼스',
@@ -75,7 +78,9 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<OperationMode>(() => readStored('sisicall-mode', 'normal'));
   const [preferences, setPreferences] = useState<DriverPreferences>(() => readStored('sisicall-preferences', DEFAULT_PREFERENCES));
   const [feedback, setFeedback] = useState<FeedbackEvent[]>(() => readStored('sisicall-feedback', []));
-  const [simulation, setSimulation] = useState<SimulationState>(() => readStored('sisicall-simulation', DEFAULT_SIMULATION));
+  const [simulation, setSimulation] = useState<SimulationState>(
+    () => readStored('sisicall-simulation', randomStartSimulation(RAW_CALLS)),
+  );
   const [stats, setStats] = useState<DriverStats>(() => normalizeDriverStats(readStored('sisicall-stats', DEFAULT_STATS)));
   const [statsDate, setStatsDate] = useState<string>(() => readStored(
     'sisicall-stats-date',
@@ -108,9 +113,22 @@ export default function App() {
   const blockingOverlayRef = useRef(hasBlockingOverlay);
   blockingOverlayRef.current = hasBlockingOverlay;
 
+  // 콜은 실제 배차처럼 계속 들고 난다. 시드가 바뀌면 떠 있는 콜 목록이 새로 구성된다.
+  const [poolSeed, setPoolSeed] = useState(() => Date.now() >>> 0);
+  const refreshCallPool = useCallback(() => setPoolSeed(Date.now() >>> 0), []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      // 모달을 보고 있거나 운행 중일 때는 목록을 흔들지 않는다
+      if (blockingOverlayRef.current || activeDriveCall || currentIncomingCall) return;
+      setPoolSeed(Date.now() >>> 0);
+    }, CALL_POOL_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [activeDriveCall, currentIncomingCall]);
+
   const livePool = useMemo(
-    () => buildSimulationCallPool(RAW_CALLS, simulation, unavailableCallIds),
-    [simulation, unavailableCallIds],
+    () => buildSimulationCallPool(RAW_CALLS, simulation, unavailableCallIds, 72, poolSeed),
+    [simulation, unavailableCallIds, poolSeed],
   );
   const scoringPreferences = useMemo<DriverPreferences>(() => ({
     ...preferences,
@@ -308,6 +326,7 @@ export default function App() {
           boosterTarget={boosterTarget}
           onOpenCallList={() => setShowCallList(true)}
           onOpenDemandMap={() => setShowDemandNotice(true)}
+          onRefreshCalls={refreshCallPool}
         />
         {showModeSettings && (
           <ModeSettingsModal
