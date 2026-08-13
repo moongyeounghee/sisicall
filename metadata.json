@@ -1,0 +1,6 @@
+{
+  "name": "CallFit AI 기사앱",
+  "description": "기사 선호 모드와 현재 운행 상황에 맞는 콜을 선별하는 택시 배차 지원 PWA 데모입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["KAKAO_MAPS", "KAKAO_MOBILITY_DIRECTIONS", "DRIVER_SIMULATION"]
+}

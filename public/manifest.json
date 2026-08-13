@@ -1,0 +1,20 @@
+{
+  "name": "CallFit AI 기사앱",
+  "short_name": "CallFit",
+  "description": "기사 선호 모드에 따라 지금 맞는 콜만 선별하는 AI 배차 지원 PWA",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#131313",
+  "theme_color": "#131313",
+  "orientation": "portrait",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
