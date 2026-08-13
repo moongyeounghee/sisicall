@@ -1,6 +1,6 @@
 {
-  "name": "CallFit AI 기사앱",
-  "short_name": "CallFit",
+  "name": "sisicall 기사앱",
+  "short_name": "sisicall",
   "description": "기사 선호 모드에 따라 지금 맞는 콜만 선별하는 AI 배차 지원 PWA",
   "start_url": "/",
   "scope": "/",

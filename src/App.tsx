@@ -72,18 +72,18 @@ function readStored<T>(key: string, fallback: T): T {
 }
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState<OperationMode>(() => readStored('callfit-mode', 'normal'));
-  const [preferences, setPreferences] = useState<DriverPreferences>(() => readStored('callfit-preferences', DEFAULT_PREFERENCES));
-  const [feedback, setFeedback] = useState<FeedbackEvent[]>(() => readStored('callfit-feedback', []));
-  const [simulation, setSimulation] = useState<SimulationState>(() => readStored('callfit-simulation', DEFAULT_SIMULATION));
-  const [stats, setStats] = useState<DriverStats>(() => normalizeDriverStats(readStored('callfit-stats', DEFAULT_STATS)));
+  const [activeMode, setActiveMode] = useState<OperationMode>(() => readStored('sisicall-mode', 'normal'));
+  const [preferences, setPreferences] = useState<DriverPreferences>(() => readStored('sisicall-preferences', DEFAULT_PREFERENCES));
+  const [feedback, setFeedback] = useState<FeedbackEvent[]>(() => readStored('sisicall-feedback', []));
+  const [simulation, setSimulation] = useState<SimulationState>(() => readStored('sisicall-simulation', DEFAULT_SIMULATION));
+  const [stats, setStats] = useState<DriverStats>(() => normalizeDriverStats(readStored('sisicall-stats', DEFAULT_STATS)));
   const [statsDate, setStatsDate] = useState<string>(() => readStored(
-    'callfit-stats-date',
-    readStored<SimulationState>('callfit-simulation', DEFAULT_SIMULATION).currentTime.slice(0, 10),
+    'sisicall-stats-date',
+    readStored<SimulationState>('sisicall-simulation', DEFAULT_SIMULATION).currentTime.slice(0, 10),
   ));
   const [driverState, setDriverState] = useState<DriverState>('waiting');
   const [boosterTarget, setBoosterTarget] = useState<string | null>(null);
-  const [unavailableCallIds, setUnavailableCallIds] = useState<string[]>(() => readStored('callfit-unavailable-calls', []));
+  const [unavailableCallIds, setUnavailableCallIds] = useState<string[]>(() => readStored('sisicall-unavailable-calls', []));
   const [currentIncomingCall, setCurrentIncomingCall] = useState<CallRequest | null>(null);
   const [activeDriveCall, setActiveDriveCall] = useState<CallRequest | null>(null);
   const [callCursor, setCallCursor] = useState(0);
@@ -132,13 +132,13 @@ export default function App() {
   );
 
   useEffect(() => {
-    localStorage.setItem('callfit-mode', JSON.stringify(activeMode));
-    localStorage.setItem('callfit-preferences', JSON.stringify(preferences));
-    localStorage.setItem('callfit-feedback', JSON.stringify(feedback.slice(-60)));
-    localStorage.setItem('callfit-stats', JSON.stringify(stats));
-    localStorage.setItem('callfit-stats-date', JSON.stringify(statsDate));
-    localStorage.setItem('callfit-simulation', JSON.stringify(simulation));
-    localStorage.setItem('callfit-unavailable-calls', JSON.stringify(unavailableCallIds.slice(-300)));
+    localStorage.setItem('sisicall-mode', JSON.stringify(activeMode));
+    localStorage.setItem('sisicall-preferences', JSON.stringify(preferences));
+    localStorage.setItem('sisicall-feedback', JSON.stringify(feedback.slice(-60)));
+    localStorage.setItem('sisicall-stats', JSON.stringify(stats));
+    localStorage.setItem('sisicall-stats-date', JSON.stringify(statsDate));
+    localStorage.setItem('sisicall-simulation', JSON.stringify(simulation));
+    localStorage.setItem('sisicall-unavailable-calls', JSON.stringify(unavailableCallIds.slice(-300)));
   }, [activeMode, preferences, feedback, stats, statsDate, simulation, unavailableCallIds]);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-# CallFit AI 기사앱
+# sisicall 기사앱
 
 기사의 현재 위치, 운행 목적, 차량 조건에 따라 주변 콜을 다시 선별하는 택시 기사용 PWA 데모입니다. 수익 최대화보다 **지금 원하는 운행 방식에 맞는 콜만 보여주는 것**에 초점을 맞췄습니다.
 
@@ -77,7 +77,7 @@ https://YOUR_PROJECT.vercel.app
 ```bash
 git init
 git add .
-git commit -m "Initial CallFit AI release"
+git commit -m "Initial sisicall release"
 git branch -M main
 git remote add origin https://github.com/USER/REPOSITORY.git
 git push -u origin main

@@ -5,7 +5,7 @@ import { defineConfig, loadEnv, Plugin } from 'vite';
 
 function kakaoDirectionsDevProxy(restKey: string): Plugin {
   return {
-    name: 'callfit-kakao-directions-dev-proxy',
+    name: 'sisicall-kakao-directions-dev-proxy',
     configureServer(server) {
       server.middlewares.use('/api/directions', async (request, response, next) => {
         if (request.method !== 'GET') return next();

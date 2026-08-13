@@ -23,7 +23,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const restKey = process.env.KAKAO_REST_API_KEY;
     if (!restKey) return response.status(503).json({ error: 'Directions service is not configured.' });
 
-    const requestUrl = new URL(request.url ?? '/', 'https://callfit.local');
+    const requestUrl = new URL(request.url ?? '/', 'https://sisicall.local');
     const originLng = validCoordinate(requestUrl.searchParams.get('originLng'), 124, 132);
     const originLat = validCoordinate(requestUrl.searchParams.get('originLat'), 33, 39.5);
     const destLng = validCoordinate(requestUrl.searchParams.get('destLng'), 124, 132);
